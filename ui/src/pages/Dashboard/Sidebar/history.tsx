@@ -83,7 +83,7 @@ export default function History() {
     return (
       <ErrorComp
         title="History not found"
-        message="Not made any request so fat"
+        message="Not made any request so far"
         type="info"
       />
     );
