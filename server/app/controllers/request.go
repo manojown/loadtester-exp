@@ -8,6 +8,7 @@ import (
 
 	"github.com/cirnum/loadtester/server/db"
 	"github.com/cirnum/loadtester/server/db/models"
+	"github.com/cirnum/loadtester/server/pkg/configs"
 	"github.com/cirnum/loadtester/server/pkg/constants"
 	"github.com/gofiber/fiber/v2"
 )
@@ -35,7 +36,6 @@ func NewRequest(c *fiber.Ctx) error {
 	var err error
 	ctx := context.Background()
 	requestpayload := &models.Request{}
-
 	if err := c.BodyParser(requestpayload); err != nil {
 		return utils.ResponseError(c, err, constants.InvalidBody, fiber.StatusInternalServerError)
 	}
@@ -45,10 +45,27 @@ func NewRequest(c *fiber.Ctx) error {
 	// To check whether requested endpoint is reachable or not.
 	responsePayload.Response, err = utils.TestRequest(requestpayload)
 	if err != nil {
+		mixpanelPayload := map[string]any{
+			"email":    c.Locals("email").(string),
+			"reason":   err.Error(),
+			"url":      requestpayload.URL,
+			"type":     requestpayload.Time,
+			"clients":  requestpayload.Clients,
+			"hasError": true,
+		}
+		configs.Mixpanel.SendEvent("REQUEST", mixpanelPayload)
 		return utils.ResponseError(c, err, constants.InvalidRequest, fiber.StatusInternalServerError)
 	}
 
 	request, err := db.Provider.AddRequest(ctx, *requestpayload)
+	mixpanelPayload := map[string]any{
+		"email":   c.Locals("email").(string),
+		"reason":  err.Error(),
+		"url":     requestpayload.URL,
+		"type":    requestpayload.Time,
+		"clients": requestpayload.Clients,
+	}
+	configs.Mixpanel.SendEvent("REQUEST", mixpanelPayload)
 	err = utils.RunExecutor(ctx, request)
 	responsePayload.Request = request
 

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+
 	rice "github.com/GeertJohan/go.rice"
 	log "github.com/sirupsen/logrus"
 
@@ -19,6 +21,9 @@ func main() {
 	config := configs.FiberConfig()
 	app := fiber.New(config)
 	isWorker := utils.GetRunnerType(store)
+	if os.Getenv("IS_PERFCHECK") != "" {
+		configs.MixpanelInitialize()
+	}
 	// initialize db provider
 	if !isWorker {
 		err := db.InitDB()

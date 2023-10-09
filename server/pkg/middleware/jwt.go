@@ -48,6 +48,11 @@ func JWTProtected(c *fiber.Ctx) error {
 	if claim, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
 		c.Locals("userId", claim["id"].(string))
 		c.Locals("email", claim["email"].(string))
+		mixpanelPayload := map[string]any{
+			"email": claim["email"].(string),
+			"url":   c.Context().URI().String(),
+		}
+		configs.Mixpanel.SendEvent("AUTH_INTERCEPTER", mixpanelPayload)
 		return c.Next()
 	}
 	return utils.ResponseError(c, nil, "", fiber.StatusInternalServerError)

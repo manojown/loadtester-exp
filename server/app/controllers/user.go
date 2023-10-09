@@ -8,6 +8,7 @@ import (
 	"github.com/cirnum/loadtester/server/app/utils"
 	"github.com/cirnum/loadtester/server/db"
 	"github.com/cirnum/loadtester/server/db/models"
+	"github.com/cirnum/loadtester/server/pkg/configs"
 	"github.com/cirnum/loadtester/server/pkg/constants"
 	"github.com/gofiber/fiber/v2"
 	"golang.org/x/crypto/bcrypt"
@@ -56,7 +57,6 @@ func SingUp(c *fiber.Ctx) error {
 	if err != nil {
 		return utils.ResponseError(c, err, constants.CommonError, fiber.StatusInternalServerError)
 	}
-
 	insertedUser, err := db.Provider.AddUser(ctx, *user)
 
 	userResponse.Email = insertedUser.Email
@@ -64,9 +64,20 @@ func SingUp(c *fiber.Ctx) error {
 	userResponse.ID = insertedUser.ID
 
 	if err != nil {
+		mixpanelPayload := map[string]any{
+			"email":    user.Email,
+			"reason":   err.Error(),
+			"hasError": true,
+		}
+		configs.Mixpanel.SendEvent("SIGNUP", mixpanelPayload)
 		return utils.ResponseError(c, err, err.Error(), fiber.StatusInternalServerError)
 	}
-
+	// Mixpanel Hit
+	mixpanelPayload := map[string]any{
+		"email": user.Email,
+		"name":  user.Name,
+	}
+	configs.Mixpanel.SendEvent("SIGNUP", mixpanelPayload)
 	return utils.ResponseSuccess(c, userResponse, constants.UserCreated, fiber.StatusOK)
 }
 
@@ -96,6 +107,12 @@ func SingIn(c *fiber.Ctx) error {
 	passErr := bcrypt.CompareHashAndPassword(dbPassBuffered, userPass)
 
 	if passErr != nil {
+		mixpanelPayload := map[string]any{
+			"email":    userBody.Email,
+			"reason":   passErr,
+			"hasError": true,
+		}
+		configs.Mixpanel.SendEvent("SINGIN", mixpanelPayload)
 		return utils.ResponseError(c, fmt.Errorf(constants.IncorrectEmailPass), constants.IncorrectEmailPass, fiber.StatusUnauthorized)
 	}
 
@@ -106,5 +123,10 @@ func SingIn(c *fiber.Ctx) error {
 	tokenResponse.Xo = jwtToken
 	tokenResponse.Email = user.Email
 	tokenResponse.Name = user.Name
+	mixpanelPayload := map[string]any{
+		"email": userBody.Email,
+		"name":  user.Name,
+	}
+	configs.Mixpanel.SendEvent("SINGIN", mixpanelPayload)
 	return utils.ResponseSuccess(c, tokenResponse, constants.UserLoggedIn, 0)
 }
