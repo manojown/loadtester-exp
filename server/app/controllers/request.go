@@ -60,7 +60,6 @@ func NewRequest(c *fiber.Ctx) error {
 	request, err := db.Provider.AddRequest(ctx, *requestpayload)
 	mixpanelPayload := map[string]any{
 		"email":   c.Locals("email").(string),
-		"reason":  err.Error(),
 		"url":     requestpayload.URL,
 		"type":    requestpayload.Time,
 		"clients": requestpayload.Clients,
